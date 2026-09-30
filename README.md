@@ -1,42 +1,75 @@
 # Autobot Feedback
 
-A small internal tool for improving an AI assistant (Autobot, by Convogenie) with evidence instead of chat threads.
+The Convogenie team's tool for making Autobot, their AI assistant, better, one mistake at a time.
 
-When Autobot gets something wrong, the team logs it, either on the site or by telling Autobot *"log this as feedback"* in the chat where it happened. The fixer (the person who works on the model) moves each report through its stages, and a fix only counts once the reporter **retests it and it passes**. Over time this becomes a record of what went wrong, what was changed, and whether it actually got better.
+When Autobot gets something wrong, someone on the team logs it. Rahul, who works on the model, fixes it. The person who reported it tries the same thing again and marks whether it actually got better. Every report keeps its evidence and its history, so the team can see what went wrong, what changed, and whether the fix held.
 
-![Dashboard](docs/dashboard.jpg)
+It has been in use at Convogenie since September 2026.
 
-## Why
+![The dashboard: open reports, where Autobot struggles, and every report with who logged it, its severity and its stage](docs/dashboard.jpg)
 
-Feedback sent over Slack gets lost: nobody can see what was reported, whether it was fixed, or whether the fix held. This tool keeps every report as a small test case:
+## Why it exists
 
-| Part | Written how |
-|---|---|
-| **What was expected** | In plain words, about Autobot: *"Autobot should have kept replying in Hindi, including drafts."* |
-| **What went wrong** | *"Autobot was asked to reply only in Hindi. Four messages later it drafted the offer in English without being told to switch."* |
-| **Exact prompt & reply** | Copied word for word. The prompt is sent again when retesting. |
-| **Screenshots & recordings** | Compressed in the browser; recordings go to Google Drive. |
+Feedback used to go to Rahul as screenshots in Slack. That made it hard to answer three simple questions: what was reported, was it fixed, and did the fix work? Messages got buried, the same problem was reported twice, and nobody could say whether Autobot was improving.
 
-## Features
+## How a report moves
 
-- **Two ways to report:** a form on the site, or Autobot itself (through [Composio](https://composio.dev)'s Supabase tools). Autobot shows a draft and asks before it saves.
-- **A retest loop:** Open → Acknowledged → Fixed · needs retest → Verified (or Reopened). Reporters can close their own reports as "no fix needed" and reopen them.
-- **Roles, enforced by the database:** only the fixer moves stages; reporters add updates and retest; history can be added to but never edited or deleted.
-- **Notifications:** a bell shows what others did since you last looked (fixers see everything, reporters see their own reports), and pages update live.
-- **Media without paid storage:** screenshots are converted to WebP (about 4× smaller); screen recordings are re-encoded in the browser (27 MB → 2 MB on a Retina recording, text still sharp) and saved to Google Drive through a tiny Apps Script "drop-box".
-- **Self-updating AI instructions:** Autobot keeps one standing line in its prompt and fetches its full logging instructions from the database each time, so changing them needs no re-pasting.
-- **Weekly backups:** a scheduled Autobot routine exports everything as JSON to a restricted Drive folder.
-- **Light and dark themes** (chosen in Settings, not inherited from the OS), password or email-link sign-in, and a demo mode with sample data.
+A real example of the loop:
 
-![Report page](docs/report.jpg)
+1. Autobot is asked to reply only in Hindi. Four messages later it drafts an offer in English.
+2. In the same chat, the reporter tells Autobot **"log this as feedback"**. Autobot drafts the report, *what was expected* and *what went wrong*, shows it, and saves it only after the reporter says yes.
+3. Rahul gets a notification, reads the report, ships a change to Autobot's prompt, and marks it **Fixed · needs retest** with the version.
+4. The reporter is told to retest. They send Autobot the exact same prompt and record the result: **Pass**, **Partly** or **Fail**.
+5. A pass moves it to **Verified**. Anything else sends it back as **Reopened**, and the loop continues.
 
-## How it fits together
+```
+Open → Acknowledged → Fixed · needs retest → Verified
+                                          ↘ Reopened
+```
+
+A report never counts as fixed because the fixer says so, only because the retest passed.
+
+![A report: what was expected next to what went wrong, the exact prompt and reply folded away, and the stage controls](docs/report.jpg)
+
+## What's in it
+
+**For the person reporting**
+- Report from the site, or from inside Autobot while the mistake is still on screen.
+- Each report leads with two plain sentences, *what was expected* and *what went wrong*. The exact prompt and reply sit folded underneath as evidence.
+- Screenshots and screen recordings, compressed in the browser before upload.
+- Add updates later without changing the original. Close a report that turns out not to need a fix, or reopen one that comes back.
+
+**For the fixer**
+- Only the fixer moves reports between stages. Each fix is recorded with the version it shipped in.
+- A notification bell and live updates. New reports, updates and retest results appear without refreshing.
+- "Where Autobot struggles": reports grouped by type (forgot context, ignored instructions, made-up facts, tone, tool actions, app bugs…).
+- An export of every report as a set of test prompts, to re-run after a change.
+
+**Around it**
+- A team list controls who can sign in. Admins add people and copy a ready-made invite.
+- Autobot backs everything up to Google Drive every week.
+- Light and dark themes, chosen by each person rather than by their computer.
+
+## Decisions along the way
+
+The tool changed a lot once real reports started coming in. Some of the choices:
+
+- **Plain sentences instead of a checklist.** The first version asked for pass/fail "criteria". In practice people wrote their frustration into that box, so it became *what was expected* and *what went wrong*, both written about Autobot in the third person.
+- **Autobot asks before it saves.** Its first reports copied the whole conversation into the form. Now it must draft the report, keep one problem per report, and get a yes first.
+- **History can be added to, never edited.** Updates, fixes and retests are appended; nothing is overwritten or deleted. The rules live in the database, not just in the buttons.
+- **Autobot's instructions live in the database.** Autobot keeps a one-line pointer and fetches its full logging instructions each time. Changing how it logs feedback never means re-pasting a prompt.
+- **Free plans only.** Screenshots are shrunk about four times (WebP). Recordings are re-encoded in the browser (a 27 MB Retina recording becomes about 2 MB, with text still sharp) and stored in Google Drive through a small Apps Script, instead of paid storage.
+- **Recordings open in Drive, not in the page.** Embedded Drive players ask viewers to sign in again in Brave and Safari, so a recording opens in a new tab instead.
+
+## How it's built
+
+A static React site on Cloudflare Pages, with Supabase behind it, and Autobot connected to the same database through Composio.
 
 ```mermaid
 flowchart LR
-  subgraph Browser["Feedback site (React, static)"]
-    UI[Reports · Retests · Settings]
-    C[Compression<br/>WebP · H.264]
+  subgraph Site["Feedback site (static React)"]
+    UI[Reports · retests · settings]
+    C[In-browser compression<br/>WebP · H.264]
   end
   subgraph Supabase
     DB[(Postgres + row-level security)]
@@ -46,61 +79,66 @@ flowchart LR
   end
   AB[Autobot] -- Composio: SQL --> DB
   AB -- curl + secret --> FN
-  AB -- python + secret --> GS
+  AB -- ffmpeg, then python + secret --> GS
   UI --> DB
-  RT -- live updates --> UI
+  RT -- live changes --> UI
   C --> ST
   C --> GS[Apps Script drop-box] --> GD[(Google Drive:<br/>recordings)]
   FN --> ST
 ```
 
-- **Frontend:** React + TypeScript + Vite, plain CSS. Hosted as static files (Cloudflare Pages).
-- **Backend:** Supabase: Postgres with row-level security, Auth (password and magic link), Storage, Realtime and one Deno edge function.
-- **Media:** [Mediabunny](https://mediabunny.dev) for in-browser video encoding (WebCodecs), Google Apps Script for Drive uploads.
-- **AI connection:** Composio's Supabase toolkit ("Execute project database query").
+| Layer | What's used |
+|---|---|
+| Site | React 19, TypeScript, Vite, plain CSS (no UI library), hash routing |
+| Hosting | Cloudflare Pages (static files) |
+| Data & auth | Supabase Postgres, Auth (password or magic link), Storage, Realtime |
+| Server code | One Deno edge function (screenshot drop-box) |
+| AI connection | [Composio](https://composio.dev)'s Supabase toolkit ("Execute project database query") |
+| Media | [Mediabunny](https://mediabunny.dev) (WebCodecs) for video, canvas for images, a Google Apps Script web app for Drive |
 
-### Security model
+### Permissions live in the database
 
-- Only emails on the `team` table can read anything. Policies call `is_team()`, `is_admin()` and `is_fixer()`.
-- Authors, reporters and stage rules are enforced in a `before insert` trigger, so they can't be faked from the browser.
-- Functions Autobot uses (`log_report`, `add_recording`, `logging_instruction`, `export_all`) are revoked from the public API roles and only callable through Composio's server-side connection.
-- The screenshot drop-box and the Drive drop-box each require a shared secret.
+The browser is never trusted to enforce the rules.
 
-## Set it up yourself
+- **Who can see anything:** only emails on the `team` table. Every policy goes through `is_team()`, `is_admin()` or `is_fixer()`.
+- **Who did what can't be faked:** a `before insert` trigger on the timeline stamps the author from the signed-in session, and rejects stage changes by non-fixers, retests before a fix, and close/reopen on someone else's report.
+- **History is append-only:** there are insert and select policies on the timeline and attachments, and no update or delete policies.
+- **Autobot's side door is closed to the public:** `log_report`, `add_recording`, `logging_instruction` and `export_all` are revoked from the public API roles. They run only through Composio's server-side connection, including its read-only variant.
+- **Uploads need a secret:** the screenshot edge function and the Drive Apps Script each check a shared secret. The site reads the Drive secret only after sign-in, and Autobot gets both through its instruction.
 
-You need free accounts on Supabase and Cloudflare (or any static host), and optionally Google Workspace and Composio.
+### Media on free tiers
 
-1. **Database.** Create a Supabase project. In the SQL Editor, run the files in `supabase/` **in order**:
-   `schema.sql` → `002_…` → `003_…` → `004_…` → `005_…` → `006_…` → `007_…`.
-   Before running them, change the two example emails in `schema.sql` and `002_…` to your own team.
-2. **Keys.** Copy `.env.example` to `.env` and add your project URL and anon (public) key.
-3. **Run it:**
-   ```bash
-   npm install
-   npm run dev      # real database
-   npm run demo     # sample data, no database needed
-   ```
-4. **Screenshot drop-box (for the AI):** create an edge function from `supabase/functions/attach-screenshot/index.ts`.
-5. **Autobot's instructions:** run `node scripts/gen-instruction-sql.mjs` and paste the generated `supabase/instruction.sql` into the SQL Editor. Then give your assistant the one-line instruction shown in **Settings → Autobot connection**.
-6. **Deploy:** `npm run build` and upload the `dist` folder to your static host. In Supabase → Authentication → URL Configuration, add the site's address.
-7. **Recordings (optional):** follow **Settings → Google Drive for recordings** (about 3 minutes, no Google Cloud project needed).
+- **Screenshots:** drawn to a canvas, capped at 2880 px wide, and saved as WebP at 0.9 quality. They're kept only if smaller than the original.
+- **Recordings:** re-encoded in the browser to H.264 at up to 1728 px, 24 fps and 450 kbps. 300 kbps smeared text while scrolling; 450 didn't. They're then sent as base64 to an Apps Script web app that saves them to a Drive folder shared with the company domain.
+- **From Autobot:** the same settings through ffmpeg on its own machine, then the same drop-box.
+
+### Live updates and notifications
+
+- Reports, timeline entries and attachments are in the `supabase_realtime` publication. Pages subscribe and reload their data when something changes; Realtime applies the same row-level security as normal reads.
+- The bell compares each change with when you last opened that report (`report_views`). Fixers hear about everything; reporters only about reports they filed or worked on. There's one line per report, and a pending retest always shows first.
+
+### Autobot's instructions, stored as data
+
+`src/instruction.ts` holds the full logging instructions. `scripts/gen-instruction-sql.mjs` turns them into a Postgres function, `logging_instruction()`, that fills in the secrets and drop-box addresses at read time. Autobot's own prompt holds one line: fetch that and follow it.
 
 ## Project layout
 
 ```
 src/
-  pages/          Reports (dashboard + table), ReportDetail, NewReport, Settings, Login
-  components.tsx  Pills, galleries, screenshot picker, notification bell, account menu
-  lib.ts          Supabase client, types, uploads, live updates, theme
-  compress.ts     In-browser image/video compression
-  drive.ts        Google Drive drop-box (Apps Script) client + the script itself
-  instruction.ts  Autobot's logging instructions (stored in the database)
-  notifications.ts
-  demo.ts         In-memory stand-in for Supabase used by `npm run demo`
-supabase/         Numbered SQL setup files + the screenshot edge function
-scripts/          Generates the instruction SQL
+  pages/           Reports (dashboard + table), ReportDetail, NewReport, Settings, Login
+  components.tsx   Pills, gallery, screenshot picker, notification bell, account menu
+  lib.ts           Supabase client, types, uploads, live updates, theme
+  notifications.ts Who should hear about what
+  compress.ts      In-browser image and video compression
+  drive.ts         Google Drive drop-box: client + the Apps Script source
+  instruction.ts   Autobot's logging instructions (stored in the database)
+  demo.ts          In-memory stand-in for Supabase, used by `npm run demo`
+supabase/          Numbered SQL files (schema → 007) and the screenshot edge function
+scripts/           Generates the instruction SQL
 ```
 
-## Built with Claude
+`npm run demo` runs the whole site on sample data, with no database. Setup notes are in [docs/SETUP.md](docs/SETUP.md).
 
-Designed and built by **Amrutha** with [Claude Code](https://claude.com/claude-code). Amrutha shaped the product from real use with the Convogenie team (what to capture, who can do what, how it should read and feel), and set up and connected every service; Claude wrote the code, the SQL and the tests.
+## Credits
+
+Designed and built by **Amrutha**, who isn't a developer, over two days with [Claude Code](https://claude.com/claude-code). Amrutha shaped the product from real use with the Convogenie team: what to capture, who can do what, how it should read and feel. Amrutha also set up and connected every service. Claude wrote the code, the SQL and the tests.
