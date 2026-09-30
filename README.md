@@ -141,4 +141,4 @@ scripts/           Generates the instruction SQL
 
 ## Credits
 
-Designed and built by **Amrutha**, who isn't a developer, over two days with [Claude Code](https://claude.com/claude-code). Amrutha shaped the product from real use with the Convogenie team: what to capture, who can do what, how it should read and feel. Amrutha also set up and connected every service. Claude wrote the code, the SQL and the tests.
+Designed and built by **Amrutha** over two days with [Claude Code](https://claude.com/claude-code). Amrutha shaped the product from real use with the Convogenie team: what to capture, who can do what, how it should read and feel. Amrutha also set up and connected every service. Claude wrote the code, the SQL and the tests.
