@@ -133,7 +133,12 @@ export function Gallery({ items }: { items: Media[] }) {
           {open.kind === 'video' ? (
             <video src={open.src} controls autoPlay />
           ) : (
-            <img src={open.src} alt="Screenshot" onClick={() => setOpen(null)} />
+            <>
+              <img src={open.src} alt="Screenshot" onClick={() => setOpen(null)} />
+              <a className="lightbox-full" href={open.src} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                Open full size in a new tab ↗
+              </a>
+            </>
           )}
           <button className="lightbox-close" onClick={() => setOpen(null)} aria-label="Close">×</button>
         </div>
