@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+.env.local
+
+# Generated from src/instruction.ts with your project details: regenerate with `node scripts/gen-instruction-sql.mjs`
+supabase/instruction.sql
+.claude/
+*.tsbuildinfo
