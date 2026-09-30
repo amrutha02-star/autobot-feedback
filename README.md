@@ -103,4 +103,4 @@ scripts/          Generates the instruction SQL
 
 ## Built with Claude
 
-Built by the Convogenie team with [Claude Code](https://claude.com/claude-code): the product decisions came from using it day to day; Claude wrote the code, the SQL and the tests.
+Designed and built by **Amrutha** with [Claude Code](https://claude.com/claude-code). Amrutha shaped the product from real use with the Convogenie team (what to capture, who can do what, how it should read and feel), and set up and connected every service; Claude wrote the code, the SQL and the tests.
