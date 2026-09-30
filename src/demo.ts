@@ -117,7 +117,7 @@ export const demoClient: any = {
     return ch
   },
   removeChannel: () => {},
-  rpc: async (name: string) => ({ data: name === 'storage_used' ? 48 * 1024 ** 2 : null, error: null }),
+  rpc: async (name: string) => ({ data: name === 'storage_used' ? 48 * 1024 ** 2 : name === 'my_feedback_key' || name === 'reset_feedback_key' ? 'demo0000key0000' + Math.random().toString(16).slice(2, 6) : null, error: null }),
   auth: {
     getSession: async () => ({ data: { session } }),
     onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),

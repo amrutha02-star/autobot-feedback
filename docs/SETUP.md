@@ -3,7 +3,7 @@
 You need free accounts on Supabase and Cloudflare (or any static host), and optionally Google Workspace and Composio.
 
 1. **Database.** Create a Supabase project. In the SQL Editor, run the files in `supabase/` **in order**:
-   `schema.sql` → `002_…` → `003_…` → `004_…` → `005_…` → `006_…` → `007_…`.
+   `schema.sql` → `002_…` → … → `008_…`.
    Before running them, change the two example emails in `schema.sql` and `002_…` to your own team.
 2. **Keys.** Copy `.env.example` to `.env` and add your project URL and anon (public) key.
 3. **Run it:**

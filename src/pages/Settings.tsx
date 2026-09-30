@@ -19,6 +19,7 @@ export default function Settings({ myEmail, admin }: { myEmail: string; admin: b
   return (
     <div className="stack narrow">
       <Appearance />
+      <ConnectAutobot />
       {admin && <Team myEmail={myEmail} />}
       {admin && <Storage />}
       {admin && <GoogleDrive />}
@@ -70,7 +71,7 @@ function Team({ myEmail }: { myEmail: string }) {
   const load = useCallback(() => {
     supabase
       .from('team')
-      .select('*')
+      .select('email, name, role, is_admin')
       .order('name')
       .then(({ data }) => setMembers((data as Member[]) || []))
   }, [])
@@ -122,6 +123,7 @@ function Team({ myEmail }: { myEmail: string }) {
               <option value="fixer">Fixer</option>
             </select>
             {!isMe(m) && <InviteButton member={m} />}
+            {!isMe(m) && <ResetKeyButton member={m} />}
             {!isMe(m) && (
               <button className="btn ghost small" onClick={() => remove(m)}>Remove</button>
             )}
@@ -165,6 +167,127 @@ function Team({ myEmail }: { myEmail: string }) {
 
 const supabaseUrl = ((import.meta.env.VITE_SUPABASE_URL as string) || '').replace(/\/$/, '')
 const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || ''
+const personalLine = (key: string) =>
+  `Feedback logging: whenever I ask you to log feedback, report a problem with you, or add a screenshot or recording to a feedback report, FIRST run this from your cloud computer and follow the instructions it returns exactly (fetch them fresh every time; they change):
+curl -s "${dropBoxUrl}?action=instruction" -H "Authorization: Bearer ${anonKey}" -H "x-feedback-key: ${key}"`
+
+function ConnectAutobot() {
+  const [key, setKey] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null)
+  const [confirmReset, setConfirmReset] = useState(false)
+
+  useEffect(() => {
+    supabase.rpc('my_feedback_key').then(({ data, error }) => setKey(error ? '' : (data as string) || ''))
+  }, [])
+
+  async function runTest() {
+    setTest(null)
+    try {
+      const res = await fetch(`${dropBoxUrl}?action=instruction`, { headers: { Authorization: `Bearer ${anonKey}`, 'x-feedback-key': key || '' } })
+      const body = await res.text()
+      if (res.ok && body.includes('FEEDBACK LOGGING')) setTest({ ok: true, text: 'Working ✓ Your Autobot will be able to log feedback.' })
+      else if (res.status === 503) setTest({ ok: false, text: 'Almost: the instructions aren’t stored yet. An admin needs to run the latest database update.' })
+      else {
+        let why = 'The drop-box may need its latest code.'
+        try {
+          why = JSON.parse(body).error || why
+        } catch {
+          /* not JSON */
+        }
+        setTest({ ok: false, text: `Not working yet (${res.status}). ${why}` })
+      }
+    } catch {
+      setTest({ ok: false, text: 'Couldn’t reach the drop-box. It may need its latest code.' })
+    }
+  }
+
+  async function reset() {
+    const { data: me } = await supabase.auth.getUser()
+    const { data } = await supabase.rpc('reset_feedback_key', { p_email: me.user?.email })
+    if (data) setKey(data as string)
+    setConfirmReset(false)
+    setTest(null)
+  }
+
+  return (
+    <section className="card">
+      <h1>Connect your Autobot</h1>
+      <p className="muted">
+        Do this once, in <strong>your own</strong> Autobot. Then you can say <em>“log this as feedback”</em> in any chat, and the report shows up here under your name,
+        with screenshots and recordings.
+      </p>
+      {key === '' ? (
+        <p className="warn small">Not available yet: an admin needs to run the latest database update.</p>
+      ) : (
+        <>
+          <ol className="steps">
+            <li>Click <strong>Copy</strong> below.</li>
+            <li>In your Autobot, paste it into its instructions (or into a chat, asking Autobot to remember it).</li>
+            <li>Click <strong>Test</strong> to check it works.</li>
+          </ol>
+          <div className="row between">
+            <span className="label">Your line for Autobot</span>
+            <span className="row gap-s">
+              <button className="btn ghost small" onClick={runTest} disabled={!key}>Test</button>
+              <button
+                className="btn primary small"
+                disabled={!key}
+                onClick={() => {
+                  navigator.clipboard.writeText(personalLine(key || ''))
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 2000)
+                }}
+              >
+                {copied ? 'Copied ✓' : 'Copy'}
+              </button>
+            </span>
+          </div>
+          <pre className="reply">{key ? personalLine('•'.repeat(12) + key.slice(-4)) : 'Loading…'}</pre>
+          {test && <p className={`small ${test.ok ? 'ok-text' : 'error'}`}>{test.text}</p>}
+          <p className="muted small">
+            This line contains your personal key, so don't share it: anyone with it could log reports as you.{' '}
+            {confirmReset ? (
+              <>
+                Make a new key? Your Autobot stops logging until you paste the new line.{' '}
+                <button className="link-btn small" onClick={reset}>Yes, reset</button> ·{' '}
+                <button className="link-btn small" onClick={() => setConfirmReset(false)}>Cancel</button>
+              </>
+            ) : (
+              <button className="link-btn small" onClick={() => setConfirmReset(true)}>Reset my key</button>
+            )}
+          </p>
+        </>
+      )}
+    </section>
+  )
+}
+
+function ResetKeyButton({ member }: { member: Member }) {
+  const [state, setState] = useState<'idle' | 'confirm' | 'done'>('idle')
+  if (state === 'done') return <span className="ok-text small">Key reset ✓</span>
+  if (state === 'confirm')
+    return (
+      <span className="row gap-s">
+        <button
+          className="btn ghost small"
+          onClick={async () => {
+            await supabase.rpc('reset_feedback_key', { p_email: member.email })
+            setState('done')
+          }}
+        >
+          Yes, reset
+        </button>
+        <button className="btn ghost small" onClick={() => setState('idle')}>Cancel</button>
+      </span>
+    )
+  return (
+    <button className="btn ghost small" title={`Stops ${member.name}'s Autobot from logging until they copy their new line`} onClick={() => setState('confirm')}>
+      Reset Autobot key
+    </button>
+  )
+}
+
 function InviteButton({ member }: { member: Member }) {
   const [copied, setCopied] = useState(false)
   const site = window.location.origin
@@ -174,8 +297,9 @@ function InviteButton({ member }: { member: Member }) {
 2. Choose "Email me a link" and enter ${member.email}
 3. Open the email and click the link (same browser)
 4. Click your initial (top right) → Set password, so next time you just sign in with your password.
+5. In Settings → Connect your Autobot, copy your line and paste it into your own Autobot's instructions. Then you can just tell Autobot "log this as feedback".
 
-${member.role === 'fixer' ? "You're set up as the fixer: you can mark reports as fixed and move them between stages." : "You can report issues, add updates and retest fixes. Tip: in Autobot, just say \"log this as feedback\"."}`
+${member.role === 'fixer' ? "You're set up as the fixer: you can mark reports as fixed and move them between stages." : "You can report issues, add updates and retest fixes."}`
   return (
     <button
       className="btn ghost small"
@@ -380,8 +504,8 @@ function AutobotConnection() {
     <section className="card">
       <h1>Autobot connection</h1>
       <p className="muted">
-        One-time setup, usually done by Rahul. Once it's done, anyone using Autobot can say <em>“log this as feedback”</em>, and the report, screenshots and
-        recordings show up here. Autobot reads its full instructions from this site each time, so when they change, nothing needs to be pasted again.
+        Everyone connects their own Autobot above, in <strong>Connect your Autobot</strong>. This section is only for an Autobot that has a direct Supabase
+        connection through Composio (needed for the weekly backup), and for testing the screenshot drop-box.
       </p>
 
       <div className="row wrap gap-s dropbox-test">

@@ -24,7 +24,7 @@ export default function App() {
     if (!session) return setMe(null)
     supabase
       .from('team')
-      .select('*')
+      .select('email, name, role, is_admin')
       .ilike('email', session.user.email || '')
       .maybeSingle()
       .then(({ data }) =>

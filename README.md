@@ -34,7 +34,7 @@ A report never counts as fixed because the fixer says so, only because the retes
 ## What's in it
 
 **For the person reporting**
-- Report from the site, or from inside Autobot while the mistake is still on screen.
+- Report from the site, or from inside their own Autobot while the mistake is still on screen. Each person connects their Autobot once, with a personal key from Settings.
 - Each report leads with two plain sentences, *what was expected* and *what went wrong*. The exact prompt and reply sit folded underneath as evidence.
 - Screenshots and screen recordings, compressed in the browser before upload.
 - Add updates later without changing the original. Close a report that turns out not to need a fix, or reopen one that comes back.
@@ -104,6 +104,7 @@ The browser is never trusted to enforce the rules.
 - **Who did what can't be faked:** a `before insert` trigger on the timeline stamps the author from the signed-in session, and rejects stage changes by non-fixers, retests before a fix, and close/reopen on someone else's report.
 - **History is append-only:** there are insert and select policies on the timeline and attachments, and no update or delete policies.
 - **Autobot's side door is closed to the public:** `log_report`, `add_recording`, `logging_instruction` and `export_all` are revoked from the public API roles. They run only through Composio's server-side connection, including its read-only variant.
+- **Each person's Autobot has its own key:** personal Autobots talk to one edge function with a per-person key (resettable from Settings), which credits reports to the right person. Keys aren't readable from the website: the `team` table exposes only name, email, role and admin flag through column grants.
 - **Uploads need a secret:** the screenshot edge function and the Drive Apps Script each check a shared secret. The site reads the Drive secret only after sign-in, and Autobot gets both through its instruction.
 
 ### Media on free tiers
