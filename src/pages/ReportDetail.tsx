@@ -374,7 +374,7 @@ function ActionPanel({
           </p>
           {report.status !== 'fixed' && (
             <p className="stage-note small">
-              Stage: <strong>{STATUSES[report.status].label}</strong>. Rahul moves it along. You'll be able to retest once he marks it fixed.
+              Stage: <strong>{STATUSES[report.status].label}</strong>. Rahul moves it along. You'll be able to retest once it's marked fixed.
             </p>
           )}
         </>

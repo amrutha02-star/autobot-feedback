@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { appSettings, getTheme, setTheme, supabase, type Theme } from '../lib'
+import { appSettings, demo, getTheme, setTheme, supabase, type Theme } from '../lib'
 import { buildInstruction } from '../instruction'
 import { DRIVE_FOLDER, buildDriveScript, testDriveScript } from '../drive'
 
@@ -183,6 +183,7 @@ function ConnectAutobot() {
 
   async function runTest() {
     setTest(null)
+    if (demo) return setTest({ ok: true, text: 'Working ✓ Your Autobot will be able to log feedback. (demo)' })
     try {
       const res = await fetch(`${dropBoxUrl}?action=instruction`, { headers: { Authorization: `Bearer ${anonKey}`, 'x-feedback-key': key || '' } })
       const body = await res.text()
